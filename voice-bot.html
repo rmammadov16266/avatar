@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Bot - AI Voice Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            min-height: 100vh;
+            background: linear-gradient(to bottom right, #eff6ff, #ffffff, #eef2ff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 42rem;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .title {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #1e293b;
+        }
+
+        .subtitle {
+            font-size: 1.125rem;
+            color: #475569;
+        }
+
+        .card {
+            border: none;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            border-radius: 0.5rem;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .avatar-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        /* Cat Avatar Styles */
+        :root {
+            --avatar-size: 208px;
+            --ring: 6px;
+            --ring-color: #8bb7ff;
+        }
+
+        .avatar-wrap {
+            width: var(--avatar-size);
+            aspect-ratio: 1;
+            display: inline-grid;
+            place-items: center;
+            border-radius: 50%;
+            position: relative;
+            filter: drop-shadow(0 6px 18px rgba(0,0,0,.25));
+            isolation: isolate;
+        }
+
+        .avatar-wrap::before {
+            content:"";
+            position:absolute;
+            inset:0;
+            border-radius:50%;
+            padding: var(--ring);
+            background: radial-gradient(120% 120% at 100% 0%, rgba(139,183,255,.28), transparent 55%),
+                        radial-gradient(120% 120% at 0% 100%, rgba(139,183,255,.2), transparent 55%);
+            -webkit-mask:
+                radial-gradient(closest-side,#000 99%,transparent) content-box,
+                radial-gradient(closest-side,#000 99%,transparent);
+            -webkit-mask-composite:xor;
+            mask-composite:exclude;
+            transition: box-shadow .25s ease;
+        }
+
+        .avatar-wrap.speaking::before {
+            box-shadow: 0 0 28px rgba(139,183,255,.5);
+        }
+
+        .avatar-wrap .avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            overflow: hidden;
+            display:grid;
+            place-items:center;
+            background: radial-gradient(120% 140% at 50% -20%, rgba(255,255,255,.35), rgba(255,255,255,0) 50%),
+                        radial-gradient(120% 140% at 50% 120%, rgba(0,0,0,.35), rgba(0,0,0,0) 60%);
+        }
+
+        /* idle breathing */
+        .breath {
+            animation: breath 3.6s ease-in-out infinite;
+            transform-origin: 50% 75%;
+        }
+
+        @keyframes breath {
+            0%,100% { transform: scale(1); }
+            50% { transform: scale(1.012); }
+        }
+
+        /* eye blink */
+        .blink {
+            transform-origin: center;
+            animation: blink 6s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%,3%,100% { transform:scaleY(1); }
+            1.5% { transform:scaleY(0.05); }
+            60% { transform:scaleY(1); }
+            63% { transform:scaleY(0.05); }
+            66% { transform:scaleY(1); }
+        }
+
+        /* Important for safe local transforms inside SVG */
+        svg * { transform-box: fill-box; transform-origin: center; }
+
+        .mic-button-container {
+            display: flex;
+            justify-content: center;
+        }
+
+        .mic-button {
+            width: 8rem;
+            height: 8rem;
+            border-radius: 50%;
+            transition: all 0.3s;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(to bottom right, #3b82f6, #4f46e5);
+        }
+
+        .mic-button:hover {
+            background: linear-gradient(to bottom right, #2563eb, #4338ca);
+        }
+
+        .mic-button.recording {
+            background: #ef4444;
+            transform: scale(1.1);
+            animation: pulse 2s infinite;
+        }
+
+        .mic-button.recording:hover {
+            background: #dc2626;
+        }
+
+        .mic-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .mic-icon {
+            width: 3rem;
+            height: 3rem;
+            color: white;
+        }
+
+        .loader-icon {
+            width: 3rem;
+            height: 3rem;
+            color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .status {
+            text-align: center;
+        }
+
+        .status-recording {
+            color: #dc2626;
+            font-weight: 500;
+            animation: pulse 2s infinite;
+        }
+
+        .status-processing {
+            color: #2563eb;
+            font-weight: 500;
+        }
+
+        .status-playing {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            color: #4f46e5;
+            font-weight: 500;
+        }
+
+        .status-playing-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            animation: pulse 2s infinite;
+        }
+
+        .message-section {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .message-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #334155;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .message-box {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border-left: 4px solid;
+        }
+
+        .message-box.user {
+            background: #eff6ff;
+            border-color: #3b82f6;
+        }
+
+        .message-box.assistant {
+            background: #eef2ff;
+            border-color: #4f46e5;
+        }
+
+        .message-text {
+            color: #1e293b;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .toast {
+            background: #1e293b;
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.3s ease-out;
+            min-width: 250px;
+        }
+
+        .toast.success {
+            background: #10b981;
+        }
+
+        .toast.error {
+            background: #ef4444;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">Voice Bot</h1>
+            <p class="subtitle">Click the microphone to speak with your AI assistant</p>
+        </div>
+
+        <div class="card">
+            <!-- Avatar -->
+            <div class="avatar-container">
+                <div class="avatar-wrap" id="catWrap" aria-label="Cat avatar">
+                    <div class="avatar">
+                        <svg class="breath" id="cat" viewBox="0 0 512 512" role="img" aria-label="Cute realistic cat face" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <radialGradient id="furBase" cx="50%" cy="40%" r="60%">
+                                    <stop offset="0%"  stop-color="#f6efe6"/>
+                                    <stop offset="55%" stop-color="#c3b5a4"/>
+                                    <stop offset="100%" stop-color="#8e7f72"/>
+                                </radialGradient>
+                                <radialGradient id="earPink" cx="50%" cy="50%" r="70%">
+                                    <stop offset="0%" stop-color="#f8b9c0"/>
+                                    <stop offset="75%" stop-color="#e39aa2"/>
+                                    <stop offset="100%" stop-color="#b06a73"/>
+                                </radialGradient>
+                                <radialGradient id="muzzle" cx="50%" cy="50%" r="60%">
+                                    <stop offset="0%" stop-color="#ffffff"/>
+                                    <stop offset="100%" stop-color="#e8e1d8"/>
+                                </radialGradient>
+                                <radialGradient id="nose" cx="50%" cy="40%" r="60%">
+                                    <stop offset="0%" stop-color="#e39aa2"/>
+                                    <stop offset="100%" stop-color="#a15e67"/>
+                                </radialGradient>
+                                <radialGradient id="eyeIris" cx="50%" cy="50%" r="60%">
+                                    <stop offset="0%" stop-color="#c7ffb0"/>
+                                    <stop offset="45%" stop-color="#8ad16a"/>
+                                    <stop offset="100%" stop-color="#2f6b2c"/>
+                                </radialGradient>
+                                <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="rgba(0,0,0,.35)"/>
+                                </filter>
+                                <clipPath id="circleClip">
+                                    <circle cx="256" cy="256" r="240"/>
+                                </clipPath>
+                            </defs>
+
+                            <g clip-path="url(#circleClip)">
+                                <!-- Head -->
+                                <ellipse cx="256" cy="270" rx="200" ry="185" fill="url(#furBase)" filter="url(#softShadow)"/>
+                                <!-- Ears -->
+                                <g>
+                                    <path d="M132,140 C110,120 95,90 110,80 C145,70 190,120 210,165 C182,160 150,152 132,140Z" fill="#8e7f72"/>
+                                    <path d="M140,128 C150,118 178,128 195,152 C170,150 150,142 140,128Z" fill="url(#earPink)"/>
+                                    <path d="M380,140 C402,120 417,90 402,80 C367,70 322,120 302,165 C330,160 362,152 380,140Z" fill="#8e7f72"/>
+                                    <path d="M372,128 C362,118 334,128 317,152 C342,150 362,142 372,128Z" fill="url(#earPink)"/>
+                                </g>
+
+                                <!-- Eyes -->
+                                <g class="blink">
+                                    <ellipse cx="190" cy="250" rx="62" ry="48" fill="#2d2a28" opacity=".1"/>
+                                    <ellipse cx="190" cy="250" rx="46" ry="38" fill="url(#eyeIris)"/>
+                                    <ellipse cx="190" cy="250" rx="12" ry="30" fill="#0b0b0b"/>
+                                    <circle cx="175" cy="240" r="8" fill="white" opacity=".9"/>
+                                    <ellipse cx="205" cy="260" rx="10" ry="6" fill="white" opacity=".25"/>
+
+                                    <ellipse cx="322" cy="250" rx="62" ry="48" fill="#2d2a28" opacity=".1"/>
+                                    <ellipse cx="322" cy="250" rx="46" ry="38" fill="url(#eyeIris)"/>
+                                    <ellipse cx="322" cy="250" rx="12" ry="30" fill="#0b0b0b"/>
+                                    <circle cx="307" cy="240" r="8" fill="white" opacity=".9"/>
+                                    <ellipse cx="337" cy="260" rx="10" ry="6" fill="white" opacity=".25"/>
+                                </g>
+
+                                <!-- Muzzle & nose -->
+                                <g>
+                                    <ellipse cx="224" cy="310" rx="58" ry="44" fill="url(#muzzle)"/>
+                                    <ellipse cx="288" cy="310" rx="58" ry="44" fill="url(#muzzle)"/>
+                                    <path d="M256,298 q-10,18 -22,26 q22,8 44,0 q-12,-8 -22,-26Z" fill="url(#nose)" stroke="#7b4b50" stroke-width="2"/>
+                                </g>
+
+                                <!-- Single mouth rig (real morph) -->
+                                <g id="mouthRig" transform="translate(0,0)">
+                                    <g id="jaw" transform="translate(0,0)">
+                                        <path id="mouth" d="M222 334 Q256 336 290 334 Q290 336 256 338 Q222 336 222 334 Z" fill="#2b1d1d"/>
+                                        <path id="lipLine" d="M222 332 Q256 336 290 332" fill="none" stroke="#7b4b50" stroke-width="3" stroke-linecap="round" opacity=".95"/>
+                                        <path id="smileShadow" d="M222 332 Q256 356 290 332" fill="none" stroke="#7b4b50" stroke-width="2" stroke-linecap="round" opacity=".2"/>
+                                        <path id="tongue" d="M236 346 Q256 358 276 346 Q276 360 256 366 Q236 360 236 346Z" fill="#e58aa0" opacity="0"/>
+                                    </g>
+                                </g>
+
+                                <!-- Whiskers -->
+                                <g stroke="#d8d0c6" stroke-width="2.5" stroke-linecap="round" opacity=".9">
+                                    <path d="M216,318 C150,310 120,300 96,294"/>
+                                    <path d="M216,330 C150,332 120,338 92,350"/>
+                                    <path d="M216,306 C150,292 120,282 90,268"/>
+                                    <path d="M296,318 C362,310 392,300 416,294"/>
+                                    <path d="M296,330 C362,332 392,338 420,350"/>
+                                    <path d="M296,306 C362,292 392,282 422,268"/>
+                                </g>
+
+                                <!-- Chest fluff -->
+                                <ellipse cx="256" cy="392" rx="96" ry="28" fill="#ffffff" opacity=".35"/>
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Microphone Button -->
+            <div class="mic-button-container">
+                <button id="micButton" class="mic-button">
+                    <svg id="micIcon" class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                        <line x1="12" y1="19" x2="12" y2="23"/>
+                        <line x1="8" y1="23" x2="16" y2="23"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Status -->
+            <div class="status">
+                <p id="statusRecording" class="status-recording hidden">Recording... Click again to stop</p>
+                <p id="statusProcessing" class="status-processing hidden">Processing your message...</p>
+                <div id="statusPlaying" class="status-playing hidden">
+                    <svg class="status-playing-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                    </svg>
+                    Playing response...
+                </div>
+            </div>
+
+            <!-- Transcription Display -->
+            <div id="transcriptionSection" class="message-section hidden">
+                <h3 class="message-label">You said:</h3>
+                <div class="message-box user">
+                    <p id="transcriptionText" class="message-text"></p>
+                </div>
+            </div>
+
+            <!-- Bot Response Display -->
+            <div id="responseSection" class="message-section hidden">
+                <h3 class="message-label">Assistant:</h3>
+                <div class="message-box assistant">
+                    <p id="responseText" class="message-text"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden audio element -->
+    <audio id="audioPlayer" style="display: none;"></audio>
+
+    <!-- Toast container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // Configuration
+        const API_URL = 'http://localhost:8000/api';
+
+        // State
+        let isRecording = false;
+        let isProcessing = false;
+        let isPlaying = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let audioStream = null;
+        let recordingStartTime = null;
+        let mimeType = 'audio/webm';
+        
+        // Avatar animation
+        let audioContext = null;
+        let analyser = null;
+        let animationFrame = null;
+        let currentAudioSource = null;
+        
+        // Cat avatar level-based mouth animation
+        const CLOSED = [222,334, 256,336, 290,334, 290,336, 256,338, 222,336, 222,334];
+        const OPEN   = [208,326, 256,332, 304,326, 304,360, 256,376, 208,360, 208,326];
+
+        function buildPath(n){
+            return `M${n[0]} ${n[1]} Q${n[2]} ${n[3]} ${n[4]} ${n[5]} Q${n[6]} ${n[7]} ${n[8]} ${n[9]} Q${n[10]} ${n[11]} ${n[12]} ${n[13]} Z`;
+        }
+        function buildLip(n){
+            return `M${n[0]} ${n[1]-2} Q${n[2]} ${n[3]} ${n[4]} ${n[5]-2}`;
+        }
+        function buildSmile(n){
+            return `M${n[0]} ${n[1]-2} Q${n[8]} ${Math.max(n[9], n[3]+24)} ${n[4]} ${n[5]-2}`;
+        }
+
+        function lerpArray(a,b,t){
+            const out = new Array(a.length);
+            for (let i=0;i<a.length;i++) out[i] = a[i] + (b[i]-a[i]) * t;
+            return out;
+        }
+
+        // Level 0..1 -> morph amount + slight jaw drop
+        let level = 0;
+        const ATTACK = 0.25;    // faster rise
+        const RELEASE = 0.08;   // slower fall = no chatter
+        const DEADZONE = 0.02;  // ignore tiny noise
+        const MAX_JAW = 14;     // visible jaw motion
+
+        function setLevelInstant(x){
+            const t = Math.max(0, Math.min(1, x));
+            const n = lerpArray(CLOSED, OPEN, t);
+            mouth.setAttribute('d', buildPath(n));
+            lipLine.setAttribute('d', buildLip(n));
+            smileShadow.setAttribute('d', buildSmile(n));
+            jaw.setAttribute('transform', `translate(0, ${t * MAX_JAW})`);
+            smileShadow.setAttribute('opacity', String(0.18 + t * 0.35));
+            tongue.setAttribute('opacity', t > 0.5 ? (t - 0.5) * 1.6 : 0);
+        }
+
+        function smoothTo(target){
+            const tgt = target < DEADZONE ? 0 : target;
+            const k = tgt > level ? ATTACK : RELEASE;
+            level = level + (tgt - level) * k;
+            setLevelInstant(level);
+        }
+
+        // DOM elements
+        const micButton = document.getElementById('micButton');
+        const micIcon = document.getElementById('micIcon');
+        const statusRecording = document.getElementById('statusRecording');
+        const statusProcessing = document.getElementById('statusProcessing');
+        const statusPlaying = document.getElementById('statusPlaying');
+        const transcriptionSection = document.getElementById('transcriptionSection');
+        const transcriptionText = document.getElementById('transcriptionText');
+        const responseSection = document.getElementById('responseSection');
+        const responseText = document.getElementById('responseText');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const avatarWrap = document.getElementById('catWrap');
+        const toastContainer = document.getElementById('toastContainer');
+        
+        // Cat avatar elements
+        const mouth = document.getElementById('mouth');
+        const lipLine = document.getElementById('lipLine');
+        const smileShadow = document.getElementById('smileShadow');
+        const jaw = document.getElementById('jaw');
+        const tongue = document.getElementById('tongue');
+
+        // Initialize
+        window.addEventListener('load', async () => {
+            // Request microphone permission
+            try {
+                await navigator.mediaDevices.getUserMedia({ audio: true });
+                console.log('Microphone access granted');
+            } catch (error) {
+                showToast('Microphone access denied', 'error');
+            }
+
+            // Setup audio context for avatar animation
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.error('Audio context creation failed:', e);
+            }
+
+            // Setup audio player
+            audioPlayer.addEventListener('ended', handleAudioEnded);
+
+            // Setup microphone button
+            micButton.addEventListener('click', toggleRecording);
+            
+            // Initialize cat avatar to closed mouth
+            setLevelInstant(0);
+        });
+
+        function toggleRecording() {
+            if (isProcessing) return;
+            
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        }
+
+        async function startRecording() {
+            try {
+                // Request high-quality audio
+                audioStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        sampleRate: 44100,
+                        channelCount: 1,
+                    }
+                });
+                
+                // Determine the best MIME type for the browser
+                const mimeTypes = [
+                    'audio/webm;codecs=opus',
+                    'audio/webm',
+                    'audio/ogg;codecs=opus',
+                    'audio/mp4',
+                    'audio/wav'
+                ];
+                
+                for (const type of mimeTypes) {
+                    if (MediaRecorder.isTypeSupported(type)) {
+                        mimeType = type;
+                        break;
+                    }
+                }
+                
+                mediaRecorder = new MediaRecorder(audioStream, {
+                    mimeType: mimeType,
+                    audioBitsPerSecond: 128000
+                });
+                
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const blobType = mimeType.includes('webm') ? 'audio/webm' : 
+                                    mimeType.includes('ogg') ? 'audio/ogg' :
+                                    mimeType.includes('mp4') ? 'audio/mp4' : 'audio/webm';
+                    const audioBlob = new Blob(audioChunks, { type: blobType });
+                    
+                    // Validate that we actually recorded something
+                    if (audioBlob.size < 1000) {
+                        showToast('Recording too short. Please speak longer.', 'error');
+                        isProcessing = false;
+                        updateUI();
+                        audioStream.getTracks().forEach(track => track.stop());
+                        return;
+                    }
+                    
+                    await processAudio(audioBlob);
+                    audioStream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start(100); // Collect data every 100ms
+                recordingStartTime = Date.now();
+                isRecording = true;
+                updateUI();
+                showToast('Recording started - speak clearly', 'success');
+            } catch (error) {
+                console.error('Error starting recording:', error);
+                showToast('Failed to start recording', 'error');
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                const recordingDuration = recordingStartTime 
+                    ? Date.now() - recordingStartTime 
+                    : 0;
+                
+                // Ensure minimum recording duration of 500ms
+                if (recordingDuration < 500) {
+                    showToast('Recording too short. Please speak for at least half a second.', 'error');
+                    setTimeout(() => {
+                        if (mediaRecorder && isRecording) {
+                            mediaRecorder.stop();
+                            isRecording = false;
+                            recordingStartTime = null;
+                            updateUI();
+                        }
+                    }, 500 - recordingDuration);
+                    return;
+                }
+                
+                console.log(`Recording stopped. Duration: ${recordingDuration}ms`);
+                mediaRecorder.stop();
+                isRecording = false;
+                recordingStartTime = null;
+                updateUI();
+            }
+        }
+
+        async function processAudio(audioBlob) {
+            isProcessing = true;
+            updateUI();
+
+            try {
+                console.log('Audio blob info:', {
+                    size: audioBlob.size,
+                    type: audioBlob.type
+                });
+
+                // Step 1: Transcribe audio
+                const formData = new FormData();
+                let filename = 'audio.webm';
+                if (audioBlob.type.includes('ogg')) filename = 'audio.ogg';
+                else if (audioBlob.type.includes('mp4')) filename = 'audio.m4a';
+                else if (audioBlob.type.includes('wav')) filename = 'audio.wav';
+
+                formData.append('file', audioBlob, filename);
+
+                console.log('Sending audio for transcription:', { filename, size: audioBlob.size });
+
+                const transcribeResponse = await fetch(`${API_URL}/transcribe`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!transcribeResponse.ok) {
+                    throw new Error('Transcription failed');
+                }
+
+                const transcribeData = await transcribeResponse.json();
+                console.log('Transcription response:', transcribeData);
+
+                const userText = transcribeData.transcription;
+
+                if (!userText || userText.trim() === '') {
+                    showToast('No speech detected', 'error');
+                    isProcessing = false;
+                    updateUI();
+                    return;
+                }
+
+                transcriptionText.textContent = userText;
+                transcriptionSection.classList.remove('hidden');
+
+                // Step 2: Stream chat response and convert to speech progressively
+                await streamChatAndSpeak(userText);
+
+            } catch (error) {
+                console.error('Error processing audio:', error);
+                showToast(error.message || 'Failed to process audio', 'error');
+            } finally {
+                isProcessing = false;
+                updateUI();
+            }
+        }
+
+        function handleAudioEnded() {
+            isPlaying = false;
+            if (window.catAvatar) window.catAvatar.end();
+            updateUI();
+            stopMouthAnimation();
+        }
+
+        async function streamChatAndSpeak(userText) {
+            let fullText = '';
+            let currentSentence = '';
+            const sentenceEndings = /[.!?]\s+/;
+            const audioQueue = [];
+            let isPlayingQueue = false;
+            let audioQueuePromise = null;
+
+            // Function to process audio queue
+            async function processAudioQueue() {
+                if (isPlayingQueue) return;
+                isPlayingQueue = true;
+
+                while (audioQueue.length > 0) {
+                    const audioUrl = audioQueue.shift();
+                    
+                    await new Promise((resolve) => {
+                        const audio = new Audio(audioUrl);
+                        
+                        // Connect audio to analyser for mouth animation
+                        if (!audioContext) {
+                            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        }
+                        
+                        // Disconnect previous source if exists
+                        if (currentAudioSource) {
+                            try {
+                                currentAudioSource.disconnect();
+                            } catch (e) {}
+                        }
+                        
+                        try {
+                            const source = audioContext.createMediaElementSource(audio);
+                            if (!analyser) {
+                                analyser = audioContext.createAnalyser();
+                                analyser.fftSize = 2048;
+                            }
+                            source.connect(analyser);
+                            analyser.connect(audioContext.destination);
+                            currentAudioSource = source;
+                        } catch (e) {
+                            // If we can't connect, use fallback animation
+                            console.log('Note: Could not connect audio analyser, using fallback animation');
+                        }
+                        
+                        if (!isPlaying) {
+                            isPlaying = true;
+                            if (window.catAvatar) window.catAvatar.begin();
+                            updateUI();
+                            startMouthAnimation();
+                        }
+                        
+                        audio.onended = () => {
+                            URL.revokeObjectURL(audioUrl);
+                            if (currentAudioSource) {
+                                try {
+                                    currentAudioSource.disconnect();
+                                } catch (e) {}
+                                currentAudioSource = null;
+                            }
+                            resolve();
+                        };
+                        audio.onerror = () => {
+                            URL.revokeObjectURL(audioUrl);
+                            if (currentAudioSource) {
+                                try {
+                                    currentAudioSource.disconnect();
+                                } catch (e) {}
+                                currentAudioSource = null;
+                            }
+                            resolve();
+                        };
+                        
+                        audio.play().catch(e => {
+                            console.error('Audio play error:', e);
+                            URL.revokeObjectURL(audioUrl);
+                            resolve();
+                        });
+                    });
+                }
+
+                isPlayingQueue = false;
+                audioQueuePromise = null;
+                
+                // Check if there's more audio to play
+                if (audioQueue.length > 0) {
+                    audioQueuePromise = processAudioQueue();
+                } else {
+                    // Small delay to ensure no more sentences are coming
+                    setTimeout(() => {
+                        if (audioQueue.length === 0 && !isPlayingQueue) {
+                            isPlaying = false;
+                            if (window.catAvatar) window.catAvatar.end();
+                            updateUI();
+                            stopMouthAnimation();
+                        }
+                    }, 500);
+                }
+            }
+
+            // Function to convert sentence to speech and add to queue
+            async function speakSentence(sentence) {
+                if (!sentence.trim()) return;
+                
+                try {
+                    const ttsResponse = await fetch(`${API_URL}/speak`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ text: sentence })
+                    });
+
+                    if (!ttsResponse.ok) {
+                        console.error('TTS failed for sentence:', sentence);
+                        return;
+                    }
+
+                    const audioBlobResponse = await ttsResponse.blob();
+                    const audioUrl = URL.createObjectURL(audioBlobResponse);
+                    audioQueue.push(audioUrl);
+                    
+                    // Start processing queue if not already processing
+                    if (!isPlayingQueue) {
+                        audioQueuePromise = processAudioQueue();
+                    }
+                } catch (error) {
+                    console.error('Error converting sentence to speech:', error);
+                }
+            }
+
+            try {
+                // Stream chat response
+                const chatResponse = await fetch(`${API_URL}/chat/stream`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text: userText })
+                });
+
+                if (!chatResponse.ok) {
+                    throw new Error('Chat stream failed');
+                }
+
+                const reader = chatResponse.body.getReader();
+                const decoder = new TextDecoder();
+                responseText.textContent = '';
+                responseSection.classList.remove('hidden');
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                if (data.error) {
+                                    throw new Error(data.error);
+                                }
+                                if (data.content) {
+                                    fullText += data.content;
+                                    currentSentence += data.content;
+                                    responseText.textContent = fullText;
+
+                                    // Check if we have a complete sentence
+                                    const match = currentSentence.match(sentenceEndings);
+                                    if (match) {
+                                        const sentenceEndIndex = match.index + match[0].length;
+                                        const completeSentence = currentSentence.substring(0, sentenceEndIndex).trim();
+                                        const remaining = currentSentence.substring(sentenceEndIndex);
+
+                                        if (completeSentence) {
+                                            await speakSentence(completeSentence);
+                                            currentSentence = remaining;
+                                        }
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('Error parsing stream data:', e);
+                            }
+                        }
+                    }
+                }
+
+                // Process any remaining text
+                if (currentSentence.trim()) {
+                    await speakSentence(currentSentence.trim());
+                }
+
+                // Wait for audio queue to finish
+                if (audioQueuePromise) {
+                    await audioQueuePromise;
+                }
+                while (audioQueue.length > 0 || isPlayingQueue) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+
+            } catch (error) {
+                console.error('Error in streamChatAndSpeak:', error);
+                throw error;
+            }
+        }
+
+
+        function updateUI() {
+            // Update mic button
+            micButton.disabled = isProcessing;
+            micButton.classList.toggle('recording', isRecording);
+
+            // Update mic icon
+            if (isProcessing) {
+                micIcon.innerHTML = `
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="31.416" stroke-dashoffset="31.416">
+                        <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416;0 31.416" repeatCount="indefinite"/>
+                        <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416;-31.416" repeatCount="indefinite"/>
+                    </circle>
+                `;
+                micIcon.classList.add('loader-icon');
+            } else if (isRecording) {
+                micIcon.innerHTML = `
+                    <rect x="9" y="2" width="6" height="11" rx="1"/>
+                    <line x1="12" y1="13" x2="12" y2="17"/>
+                    <line x1="8" y1="17" x2="16" y2="17"/>
+                    <line x1="9" y1="11" x2="9" y2="11" stroke-width="3" stroke-linecap="round"/>
+                `;
+                micIcon.classList.remove('loader-icon');
+            } else {
+                micIcon.innerHTML = `
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                `;
+                micIcon.classList.remove('loader-icon');
+            }
+
+            // Update status
+            statusRecording.classList.toggle('hidden', !isRecording);
+            statusProcessing.classList.toggle('hidden', !isProcessing);
+            statusPlaying.classList.toggle('hidden', !isPlaying);
+        }
+
+        function startMouthAnimation() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            if (!analyser) {
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 1024;
+            }
+
+            const dataArray = new Uint8Array(analyser.fftSize);
+
+            function tick() {
+                if (!isPlaying) {
+                    stopMouthAnimation();
+                    return;
+                }
+
+                if (analyser) {
+                    analyser.getByteTimeDomainData(dataArray);
+                    let sum = 0;
+                    for (let i = 0; i < dataArray.length; i++) {
+                        const v = (dataArray[i] - 128) / 128;
+                        sum += v * v;
+                    }
+                    const rms = Math.sqrt(sum / dataArray.length);    // ~0..0.3 typical
+                    const gain = 3.4;                                  // sensitivity
+                    window.catAvatar.setLevel(Math.max(0, Math.min(1, rms * gain)));
+                }
+
+                animationFrame = requestAnimationFrame(tick);
+            }
+
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+            }
+            tick();
+        }
+
+        function stopMouthAnimation() {
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+                animationFrame = null;
+            }
+            level = 0;
+            setLevelInstant(0);
+        }
+
+        // Public API for cat avatar
+        window.catAvatar = {
+            begin() { avatarWrap.classList.add('speaking'); },
+            end() { avatarWrap.classList.remove('speaking'); level = 0; setLevelInstant(0); },
+            setLevel(v) { smoothTo(Math.max(0, Math.min(1, v))); }
+        };
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease-out reverse';
+                setTimeout(() => {
+                    toastContainer.removeChild(toast);
+                }, 300);
+            }, 4000);
+        }
+    </script>
+</body>
+</html>
