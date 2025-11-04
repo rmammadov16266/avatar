@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import './App.css';
 import Avatar from './components/Avatar';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_URL = process.env.REACT_APP_API_BASE || 'http://localhost:8000/api';
 
 function App() {
   const [isRecording, setIsRecording] = useState(false);
